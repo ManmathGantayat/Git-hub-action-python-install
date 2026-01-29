@@ -1,7 +1,10 @@
-import time
+from flask import Flask
 
-print("🚀 Python app started via GitHub Actions SSH")
+app = Flask(__name__)
 
-while True:
-    print("✅ App is running...")
-    time.sleep(10)
+@app.route("/")
+def home():
+    return "✅ Flask app deployed via GitHub Actions SSH"
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
