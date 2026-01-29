@@ -1,1 +1,58 @@
+name: Install Python & Deploy App using SSH_KEY
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout repository
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2️⃣ Setup SSH using Flipkart.pem (SSH_KEY)
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      # 3️⃣ SSH into EC2 and do everything
+      - name: Install Python, Clone Repo, Run App
+        run: |
+          ssh -i ~/.ssh/id_rsa ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+            set -e
+
+            echo "🔹 Updating system"
+            sudo dnf update -y
+
+            echo "🔹 Installing Python, pip and git"
+            sudo dnf install -y python3 python3-pip git
+
+            echo "🔹 Creating application directory"
+            mkdir -p ${{ secrets.APP_DIR }}
+            cd ${{ secrets.APP_DIR }}
+
+            if [ ! -d ".git" ]; then
+              echo "🔹 Cloning repository"
+              git clone https://github.com/${{ github.repository }} .
+            else
+              echo "🔹 Pulling latest code"
+              git pull origin main
+            fi
+
+            echo "🔹 Installing Python dependencies"
+            pip3 install --user -r requirements.txt
+
+            echo "🔹 Running Python application"
+            pkill -f app.py || true
+            nohup python3 app.py > app.log 2>&1 &
+
+            echo "✅ Deployment completed successfully"
+          EOF
 
